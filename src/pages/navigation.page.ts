@@ -24,17 +24,30 @@ export class NavigationPage extends BasePage {
 
   /**
    * Return the primary navigation locator.
-   * Tries role="navigation" first, then <nav>, then header-scoped links.
+   * Tries semantic selectors first, then common WordPress/theme patterns.
    */
   private getNavLocator(): Locator {
-    return this.page.locator('nav, [role="navigation"]').first();
+    return this.page.locator(
+      'nav, [role="navigation"], #site-navigation, #primary-navigation, ' +
+      '.main-navigation, .primary-navigation, .menu-container, ' +
+      'header ul[id*="menu"], header ul[class*="menu"], header ul[class*="nav"]'
+    ).first();
   }
 
   /** Return true if a navigation element is visible on the page. */
   async isNavVisible(): Promise<boolean> {
     const nav = this.getNavLocator();
-    if (await nav.count() === 0) return false;
-    return nav.isVisible();
+    if (await nav.count() > 0) {
+      const visible = await nav.isVisible().catch(() => false);
+      if (visible) return true;
+    }
+    // Fallback: check for visible links in the header as proxy for nav presence
+    const headerLinks = this.page.locator('header a[href]');
+    const count = await headerLinks.count();
+    for (let i = 0; i < Math.min(count, 5); i++) {
+      if (await headerLinks.nth(i).isVisible().catch(() => false)) return true;
+    }
+    return false;
   }
 
   // ── Nav links ────────────────────────────────────────────────────────────────
@@ -45,9 +58,10 @@ export class NavigationPage extends BasePage {
    */
   async getNavLinks(): Promise<NavLinkInfo[]> {
     const nav = this.getNavLocator();
-    if (await nav.count() === 0) return [];
+    const navExists = (await nav.count()) > 0;
 
-    const links = nav.locator('a[href]');
+    // Fall back to header-scoped links when no semantic nav container is found
+    const links = navExists ? nav.locator('a[href]') : this.page.locator('header a[href]');
     const count = await links.count();
     const results: NavLinkInfo[] = [];
 
@@ -89,6 +103,8 @@ export class NavigationPage extends BasePage {
       this.page.locator('[class*="hamburger"], [class*="menu-toggle"], [class*="nav-toggle"]'),
       this.page.locator('[aria-label*="menu" i], [aria-label*="navigation" i]').filter({ hasNotText: /^\s*$/ }),
       this.page.locator('button[aria-expanded]').first(),
+      this.page.locator('button').filter({ hasText: /^menu$/i }),
+      this.page.locator('[id*="toggle" i], [id*="hamburger" i]'),
     ];
 
     for (const candidate of candidates) {
