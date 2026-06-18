@@ -47,6 +47,10 @@ export class NavigationPage extends BasePage {
     for (let i = 0; i < Math.min(count, 5); i++) {
       if (await headerLinks.nth(i).isVisible().catch(() => false)) return true;
     }
+    // Fallback: on mobile/tablet the nav collapses behind a hamburger toggle —
+    // a visible toggle proves the nav structure exists
+    const toggle = await this.getMobileMenuToggle();
+    if (toggle && await toggle.isVisible().catch(() => false)) return true;
     return false;
   }
 
