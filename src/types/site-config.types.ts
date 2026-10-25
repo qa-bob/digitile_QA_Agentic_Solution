@@ -80,8 +80,8 @@ export function loadSiteConfig(configDir: string = process.cwd()): SiteConfig {
     return { ...DEFAULT_CONFIG };
   }
 
-  // Strip UTF-8 BOM (﻿) that Windows editors sometimes prepend
-  const raw = fs.readFileSync(configPath, 'utf-8').replace(/^﻿/, '');
+  // Strip UTF-8 BOM (\uFEFF) that Windows editors sometimes prepend
+  const raw = fs.readFileSync(configPath, 'utf-8').replace(/^\uFEFF/, '');
 
   let parsed: Partial<SiteConfig>;
   try {
